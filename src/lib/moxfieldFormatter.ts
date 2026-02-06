@@ -130,8 +130,9 @@ export function formatForMoxfield(
 	const card = dbResult.card;
 	const setCode = card.set_code.toUpperCase();
 
-	// Use requested foil status if explicitly set, otherwise use detected
-	const foilStatus = originalInput.foilStatus || card.foilStatus || '';
+	// Only use foil status if explicitly requested by user input
+	// Don't apply database detected foil status
+	const foilStatus = originalInput.foilStatus || '';
 
 	const finishSuffix = foilStatus ? ` *${foilStatus}*` : '';
 	const tagsSuffix = originalInput.tags ? ` ${originalInput.tags}` : '';
