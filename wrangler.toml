@@ -1,0 +1,13 @@
+name = "mtg-card-finder"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2024-12-16"
+
+[assets]
+directory = ".svelte-kit/cloudflare/public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "MTG_CARDS_DB"
+database_name = "mtg-cards-db"
+database_id = "1042c0e6-9193-4ba6-bfc0-5169bc18ed02"
+
