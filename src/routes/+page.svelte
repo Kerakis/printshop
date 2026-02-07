@@ -97,10 +97,8 @@
 	<div class="mx-auto max-w-6xl">
 		<!-- Header -->
 		<div class="mb-8">
-			<h1 class="mb-2 text-4xl font-bold text-white">MTG Card Finder</h1>
-			<p class="text-slate-300">
-				Find the oldest printing of your cards and generate Moxfield-formatted text
-			</p>
+			<h1 class="mb-2 text-4xl font-bold text-white">Printshop</h1>
+			<p class="text-slate-300">Swap your current card list for the oldest versions!</p>
 		</div>
 
 		<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -112,12 +110,12 @@
 					<div class="space-y-4">
 						<div>
 							<label for="textarea" class="mb-2 block text-sm font-medium text-slate-300">
-								Paste Card List
+								Paste Your Card List from Moxfield's Bulk Editor
 							</label>
 							<textarea
 								id="textarea"
 								bind:value={inputText}
-								placeholder="Enter one card per line:&#10;Aetherflux Reservoir&#10;1 Big Score&#10;2 Mountain F&#10;3 Island (MIR) 60 *E* #Land"
+								placeholder="Enter one card per line."
 								class="h-40 w-full rounded border border-slate-500 bg-slate-600 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none disabled:opacity-50"
 								disabled={isProcessing}
 							></textarea>
@@ -141,9 +139,23 @@
 								type="file"
 								accept=".txt"
 								bind:files={inputFile}
-								class="w-full rounded border border-slate-500 bg-slate-600 px-4 py-2 text-white focus:border-blue-500 focus:outline-none disabled:opacity-50"
+								class="hidden"
 								disabled={isProcessing}
 							/>
+							<div class="flex flex-col gap-2">
+								<button
+									on:click={() => document.getElementById('file')?.click()}
+									class="w-full rounded bg-slate-600 px-4 py-2 text-white transition hover:bg-slate-500 disabled:opacity-50"
+									disabled={isProcessing}
+								>
+									Select file
+								</button>
+								{#if inputFile && inputFile.length > 0}
+									<div class="text-sm text-slate-400">
+										Selected: <span class="text-slate-200">{inputFile[0].name}</span>
+									</div>
+								{/if}
+							</div>
 						</div>
 
 						<button
@@ -171,23 +183,23 @@
 					<h3 class="mb-3 text-lg font-semibold text-white">Supported Formats</h3>
 					<ul class="space-y-2 text-sm text-slate-300">
 						<li>
-							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">Aetherflux</span>
+							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">Abrade</span>
 						</li>
 						<li>
-							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">1 Big Score</span>
+							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">1 Abrade</span>
 						</li>
 						<li>
-							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">2 Island F</span>
+							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs">2x Abrade</span>
 						</li>
 						<li>
 							<span class="rounded bg-slate-600 px-2 py-1 font-mono text-xs"
-								>1 Aetherflux (KHM) 311 *F* #Tag</span
+								>2 Abrade (HOU) 83 *F*</span
 							>
 						</li>
 					</ul>
 					<p class="mt-3 text-xs text-slate-400">
-						<strong>F</strong> = Foil, <strong>E</strong> = Etched Foil. Tags after
-						<strong>#</strong> are preserved.
+						Tags and foil data are preserved where possible. Not all printings are available in
+						every treatment.
 					</p>
 				</div>
 			</div>
