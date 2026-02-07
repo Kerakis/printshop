@@ -28,12 +28,14 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return httpError(500, 'D1 database not configured');
 	}
 
-	let body: { cards: BatchRequestCard[] };
+	let body: { cards: BatchRequestCard[]; sortOrder?: 'oldest' | 'newest' };
 	try {
 		body = await request.json();
 	} catch {
 		return httpError(400, 'Invalid JSON body');
 	}
+
+	const sortOrder = body.sortOrder || 'oldest';
 
 	if (!Array.isArray(body.cards) || body.cards.length === 0) {
 		return httpError(400, 'Missing or empty cards array');
@@ -51,12 +53,12 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		result: BatchResultCard | null;
 	}[] = [];
 
-	// Process in parallel batches of 20 to maximize throughput
+	// Process in parallel batches of 50 to maximize throughput
 	// (Higher concurrency reduces overall latency vs sequential lookups)
-	const batchSize = 20;
+	const batchSize = 50;
 	for (let i = 0; i < body.cards.length; i += batchSize) {
 		const batch = body.cards.slice(i, i + batchSize);
-		const promises = batch.map((card) => lookupCard(card, platform.env.MTG_CARDS_DB));
+		const promises = batch.map((card) => lookupCard(card, platform.env.MTG_CARDS_DB, sortOrder));
 		const batchResults = await Promise.all(promises);
 		results.push(...batchResults);
 	}
@@ -66,7 +68,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 async function lookupCard(
 	inputCard: BatchRequestCard,
-	db: D1Database
+	db: D1Database,
+	sortOrder: 'oldest' | 'newest'
 ): Promise<{
 	found: boolean;
 	originalCard: BatchRequestCard;
@@ -85,6 +88,12 @@ async function lookupCard(
 
 		console.log(`Looking up card: "${cardName}"`);
 
+		// Build ORDER BY clause based on sort order
+		const orderClause =
+			sortOrder === 'newest'
+				? 'ORDER BY (released_at IS NULL) ASC, released_at DESC, CAST(collector_number AS INTEGER) DESC'
+				: 'ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC';
+
 		// Try exact match first (case-insensitive)
 		let result = await db
 			.prepare(
@@ -92,7 +101,7 @@ async function lookupCard(
 			SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 			FROM cards
 			WHERE lower(name) = lower(?)
-			ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC
+			${orderClause}
 			LIMIT 1
 		`
 			)
@@ -117,7 +126,7 @@ async function lookupCard(
 				SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 				FROM cards
 				WHERE lower(name) LIKE lower(?)
-				ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC
+				${orderClause}
 				LIMIT 1
 			`
 				)
