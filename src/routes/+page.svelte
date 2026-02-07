@@ -9,7 +9,7 @@
 	let failedCards: { name: string; reason: string }[] = [];
 	let hasRun = false;
 	let copyButtonText = 'Copy to Clipboard';
-	let downloadButtonText = 'Download text file';
+	let downloadButtonText = 'Download Text File';
 	let sortOrder: 'oldest' | 'newest' = 'oldest';
 
 	// Session cache for card lookups (keyed by cardName_sortOrder)
@@ -192,7 +192,7 @@
 		document.body.removeChild(element);
 		downloadButtonText = 'Downloaded!';
 		setTimeout(() => {
-			downloadButtonText = 'Download text file';
+			downloadButtonText = 'Download Text File';
 		}, 5000);
 	}
 
