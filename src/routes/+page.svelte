@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { parseCardInput, processBatch, type ParsedInputCard } from '$lib/moxfieldFormatter';
+	import {
+		parseCardInput,
+		processBatch,
+		type ParsedInputCard,
+		type BatchResultCard
+	} from '$lib/moxfieldFormatter';
+	import { SvelteMap } from 'svelte/reactivity';
+
+	type CardCacheEntry = { found: boolean; result: BatchResultCard | null };
 
 	let inputText = '';
 	let inputFile: FileList | undefined;
@@ -12,12 +20,11 @@
 	let downloadButtonText = 'Download Text File';
 	let sortOrder: 'oldest' | 'newest' = 'oldest';
 
-	// Session cache for card lookups (keyed by cardName_sortOrder)
-	const cardCache = new Map<string, any>();
+	const cardCache = new SvelteMap<string, CardCacheEntry>();
+
 	let cacheHits = 0;
 	let cacheMisses = 0;
 
-	// Track input state to prevent reprocessing unchanged inputs
 	let lastProcessedInput = '';
 	let lastProcessedFile = '';
 
@@ -28,15 +35,36 @@
 
 	function hasInputChanged() {
 		const currentInput = getInputHash();
-		return currentInput !== lastProcessedInput || currentInput !== lastProcessedFile;
+		return currentInput !== lastProcessedInput && currentInput !== lastProcessedFile;
+	}
+
+	// Helper to normalize a possibly-sparse card into ParsedInputCard
+	function normalizeToParsedInputCard(card: {
+		name: string;
+		quantity?: number;
+		foilStatus?: string;
+		tags?: string;
+	}): ParsedInputCard {
+		return {
+			name: card.name,
+			quantity: card.quantity ?? 1,
+			foilStatus: card.foilStatus ?? '',
+			tags: card.tags ?? ''
+		};
 	}
 
 	async function batchLookup(
 		cards: { name: string; quantity?: number; foilStatus?: string; tags?: string }[]
 	) {
-		const cachedResults: any[] = [];
-		const uncachedCards: typeof cards = [];
-		const cardIndexMap = new Map<number, number>(); // maps original index to result index
+		// originalCard in cachedResults must be ParsedInputCard to satisfy processBatch
+		const cachedResults: {
+			found: boolean;
+			originalCard: ParsedInputCard;
+			result: BatchResultCard | null;
+		}[] = [];
+		const uncachedCards: { name: string; quantity?: number; foilStatus?: string; tags?: string }[] =
+			[];
+		const cardIndexMap = new SvelteMap<number, number>(); // maps original index to result index
 
 		// Check cache first
 		cards.forEach((card, index) => {
@@ -47,7 +75,7 @@
 				cacheHits++;
 				cachedResults.push({
 					found: cached.found,
-					originalCard: card,
+					originalCard: normalizeToParsedInputCard(card),
 					result: cached.result
 				});
 				cardIndexMap.set(index, cachedResults.length - 1);
@@ -70,10 +98,16 @@
 				throw new Error('Failed to lookup cards');
 			}
 
-			const data = await response.json();
+			const data: {
+				results: {
+					found: boolean;
+					originalCard: { name: string; quantity?: number; foilStatus?: string; tags?: string };
+					result: BatchResultCard | null;
+				}[];
+			} = await response.json();
 
-			// Cache the results
-			data.results.forEach((result: any, idx: number) => {
+			// Cache the results (cache key uses the uncachedCards order)
+			data.results.forEach((result, idx) => {
 				const card = uncachedCards[idx];
 				const cacheKey = `${card.name.toLowerCase()}_${sortOrder}`;
 				cardCache.set(cacheKey, {
@@ -82,31 +116,38 @@
 				});
 			});
 
-			// Merge cached and fresh results in original order
-			const allResults: any[] = [];
+			// Merge cached and fresh results in original order, normalizing originalCard to ParsedInputCard
+			const allResults: {
+				found: boolean;
+				originalCard: ParsedInputCard;
+				result: BatchResultCard | null;
+			}[] = [];
 			let uncachedIdx = 0;
-			let cachedIdx = 0;
 
 			for (let i = 0; i < cards.length; i++) {
 				const mapValue = cardIndexMap.get(i)!;
 				if (mapValue >= 0) {
-					// From cache
+					// From cache (already normalized)
 					allResults.push(cachedResults[mapValue]);
 				} else {
-					// From fresh fetch
-					allResults.push(data.results[uncachedIdx++]);
+					// From fresh fetch: normalize the returned originalCard
+					const raw = data.results[uncachedIdx++];
+					allResults.push({
+						found: raw.found,
+						originalCard: normalizeToParsedInputCard(raw.originalCard),
+						result: raw.result
+					});
 				}
 			}
 
 			return { results: allResults };
 		}
 
-		// All cards were cached
+		// All cards were cached (already normalized)
 		return { results: cachedResults };
 	}
 
 	async function handleProcess() {
-		// Check if input has changed since last processing
 		if (hasRun && !hasInputChanged()) {
 			failedCards = [
 				{
@@ -125,7 +166,6 @@
 		hasRun = true;
 
 		try {
-			// Get input text from either textarea or file upload
 			let text = inputText;
 
 			if (inputFile && inputFile.length > 0) {
@@ -138,7 +178,7 @@
 				return;
 			}
 
-			const parsedCards = parseCardInput(text);
+			const parsedCards: ParsedInputCard[] = parseCardInput(text);
 			if (parsedCards.length === 0) {
 				failedCards = [{ name: 'Input', reason: 'No valid cards found in input' }];
 				isProcessing = false;
@@ -152,11 +192,9 @@
 			successCards = results.success;
 			failedCards = results.failed;
 
-			// Store the processed input state
 			lastProcessedInput = inputText;
 			lastProcessedFile = inputFile && inputFile.length > 0 ? inputFile[0].name : '';
 
-			// Clear status once processing is complete
 			processingStatus = '';
 		} catch (err) {
 			failedCards = [
