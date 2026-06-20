@@ -274,8 +274,7 @@
 							bind:value={inputText}
 							placeholder="Enter one card per line."
 							class="h-40 w-full rounded border border-slate-500 bg-slate-600 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-							disabled={isProcessing || (inputFile && inputFile.length > 0)}
-						></textarea>
+							disabled={isProcessing || (inputFile && inputFile.length > 0)}></textarea>
 					</div>
 
 					<div class="relative">
@@ -514,7 +513,7 @@
 		<footer class="mt-8 border-t border-slate-700 pt-6 text-center">
 			<p class="text-sm text-slate-400">
 				<a
-					href="https://github.com/Kerakis"
+					href="https://www.kerakis.com/"
 					target="_blank"
 					rel="noopener noreferrer"
 					class="text-slate-300 transition hover:text-white"
