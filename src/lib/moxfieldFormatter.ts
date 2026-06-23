@@ -1,12 +1,3 @@
-export interface MoxfieldCard {
-	quantity: number;
-	cardName: string;
-	setCode: string;
-	foilStatus: string;
-	collectorNumber?: string;
-	tags?: string;
-}
-
 export interface ParsedInputCard {
 	name: string;
 	quantity: number;
@@ -14,7 +5,7 @@ export interface ParsedInputCard {
 	tags: string;
 }
 
-export interface CardLookupResult {
+interface CardLookupResult {
 	found: boolean;
 	card: {
 		id: string;
@@ -94,10 +85,7 @@ export function parseCardInput(input: string): ParsedInputCard[] {
 /**
  * Format card for Moxfield output while preserving original metadata
  */
-export function formatForMoxfield(
-	dbResult: CardLookupResult,
-	originalInput: ParsedInputCard
-): string {
+function formatForMoxfield(dbResult: CardLookupResult, originalInput: ParsedInputCard): string {
 	if (!dbResult.found || !dbResult.card) {
 		return '';
 	}
