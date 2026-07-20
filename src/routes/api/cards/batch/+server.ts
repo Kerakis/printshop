@@ -94,13 +94,16 @@ async function lookupCard(
 				? 'ORDER BY (released_at IS NULL) ASC, released_at DESC, CAST(collector_number AS INTEGER) DESC'
 				: 'ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC';
 
-		// Try exact match first (case-insensitive)
+		// Try exact match first (case-insensitive).
+		// Keep this as `name = ? COLLATE NOCASE`, never `lower(name) = lower(?)`:
+		// wrapping the column in a function makes idx_cards_name (name COLLATE NOCASE)
+		// unusable, turning every lookup into a ~535k-row full scan of the D1 table.
 		let result = await db
 			.prepare(
 				`
 			SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 			FROM cards
-			WHERE lower(name) = lower(?)
+			WHERE name = ? COLLATE NOCASE
 			${orderClause}
 			LIMIT 1
 		`
@@ -112,25 +115,29 @@ async function lookupCard(
 			console.log(`  Found exact match: ${result.name} (${result.set_code})`);
 		}
 
-		// Fallback to LIKE search if no exact match
-		// Use first word of card name to avoid complex LIKE pattern errors in D1
-		if (!result) {
-			console.log(`  No exact match, trying LIKE search...`);
-			// Extract first word (up to first space or special char) for LIKE pattern
-			const firstWord = cardName.split(/[\s,/]/)[0] || cardName;
-			console.log(`  Searching with first word: "${firstWord}"`);
+		// Fallback to prefix search if no exact match, using the first word of the
+		// card name. Anchored (`foo%`, not `%foo%`) so SQLite's LIKE optimization
+		// can range-scan idx_cards_name — a leading wildcard defeats every index
+		// and full-scans ~535k rows. No ESCAPE clause: it would disable that
+		// optimization, so names containing LIKE wildcards are rejected instead
+		// (no real card name has one).
+		// ponytail: prefix-only, so it won't match mid-name terms. Add FTS5 if
+		// real substring search is ever needed.
+		const firstWord = cardName.split(/[\s,/]/)[0] || cardName;
+		if (!result && !/[%_]/.test(firstWord)) {
+			console.log(`  No exact match, trying prefix search on: "${firstWord}"`);
 
 			result = await db
 				.prepare(
 					`
 				SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 				FROM cards
-				WHERE lower(name) LIKE lower(?)
+				WHERE name LIKE ?
 				${orderClause}
 				LIMIT 1
 			`
 				)
-				.bind(`%${firstWord}%`)
+				.bind(`${firstWord}%`)
 				.first<Card>();
 
 			if (result) {
