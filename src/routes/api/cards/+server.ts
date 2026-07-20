@@ -23,27 +23,37 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 	}
 
 	try {
-		// Try exact match first (case-insensitive)
+		// Try exact match first (case-insensitive).
+		// Keep this as `name = ? COLLATE NOCASE`, never `lower(name) = lower(?)`:
+		// wrapping the column in a function makes idx_cards_name (name COLLATE NOCASE)
+		// unusable, turning every lookup into a ~535k-row full scan of the D1 table.
 		const exactQuery = `
 			SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 			FROM cards
-			WHERE lower(name) = lower(?)
+			WHERE name = ? COLLATE NOCASE
 			ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC
 			LIMIT 1
 		`;
 
 		let result = await platform.env.MTG_CARDS_DB.prepare(exactQuery).bind(name).first<Card>();
 
-		// Fallback to LIKE search if no exact match
-		if (!result) {
+		// Fallback to prefix search if no exact match. Anchored (`foo%`, not
+		// `%foo%`) so SQLite's LIKE optimization can range-scan idx_cards_name:
+		// a leading wildcard defeats every index and full-scans the table.
+		// ponytail: prefix-only, so it won't match mid-name terms. Add FTS5 if
+		// real substring search is ever needed.
+		// No ESCAPE clause: it would disable the LIKE optimization. Instead reject
+		// names containing LIKE wildcards — no real card name has one, and an
+		// unescaped `%` from user input would scan the whole table.
+		if (!result && !/[%_]/.test(name)) {
 			const likeQuery = `
 				SELECT id, name, set_code, set_name, collector_number, released_at, finishes
 				FROM cards
-				WHERE lower(name) LIKE lower(?)
+				WHERE name LIKE ?
 				ORDER BY (released_at IS NULL) ASC, released_at ASC, CAST(collector_number AS INTEGER) ASC
 				LIMIT 1
 			`;
-			result = await platform.env.MTG_CARDS_DB.prepare(likeQuery).bind(`%${name}%`).first<Card>();
+			result = await platform.env.MTG_CARDS_DB.prepare(likeQuery).bind(`${name}%`).first<Card>();
 		}
 
 		if (!result) {
