@@ -9,6 +9,9 @@ declare global {
 		interface Platform {
 			env: {
 				MTG_CARDS_DB: D1Database;
+				MOXFIELD_USER_AGENT: { get(): Promise<string> };
+				/** Local-dev only: Secrets Store bindings don't resolve in `wrangler dev`. */
+				MOXFIELD_USER_AGENT_DEV?: string;
 			};
 		}
 	}

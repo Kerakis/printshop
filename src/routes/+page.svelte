@@ -9,6 +9,7 @@
 
 	type CardCacheEntry = { found: boolean; result: BatchResultCard | null };
 
+	let moxfieldUrl = '';
 	let inputText = '';
 	let inputFile: FileList | undefined;
 	let isProcessing = false;
@@ -22,20 +23,17 @@
 
 	const cardCache = new SvelteMap<string, CardCacheEntry>();
 
-	let cacheHits = 0;
-	let cacheMisses = 0;
-
 	let lastProcessedInput = '';
-	let lastProcessedFile = '';
 
+	// Precedence: Moxfield URL, then uploaded file, then pasted text.
 	function getInputHash() {
-		const text = inputFile && inputFile.length > 0 ? inputFile[0].name : inputText;
-		return text;
+		if (moxfieldUrl.trim()) return `url:${moxfieldUrl.trim()}`;
+		if (inputFile && inputFile.length > 0) return `file:${inputFile[0].name}`;
+		return `text:${inputText}`;
 	}
 
 	function hasInputChanged() {
-		const currentInput = getInputHash();
-		return currentInput !== lastProcessedInput && currentInput !== lastProcessedFile;
+		return getInputHash() !== lastProcessedInput;
 	}
 
 	// Helper to normalize a possibly-sparse card into ParsedInputCard
@@ -72,7 +70,6 @@
 			const cached = cardCache.get(cacheKey);
 
 			if (cached) {
-				cacheHits++;
 				cachedResults.push({
 					found: cached.found,
 					originalCard: normalizeToParsedInputCard(card),
@@ -80,7 +77,6 @@
 				});
 				cardIndexMap.set(index, cachedResults.length - 1);
 			} else {
-				cacheMisses++;
 				cardIndexMap.set(index, -uncachedCards.length - 1); // negative to indicate uncached
 				uncachedCards.push(card);
 			}
@@ -168,7 +164,19 @@
 		try {
 			let text = inputText;
 
-			if (inputFile && inputFile.length > 0) {
+			if (moxfieldUrl.trim()) {
+				processingStatus = 'Fetching deck from Moxfield...';
+				const res = await fetch('/api/moxfield', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ url: moxfieldUrl.trim() })
+				});
+				if (!res.ok) {
+					const body = (await res.json().catch(() => null)) as { message?: string } | null;
+					throw new Error(body?.message ?? `Moxfield import failed (${res.status})`);
+				}
+				text = ((await res.json()) as { text: string }).text;
+			} else if (inputFile && inputFile.length > 0) {
 				text = await inputFile[0].text();
 			}
 
@@ -192,8 +200,7 @@
 			successCards = results.success;
 			failedCards = results.failed;
 
-			lastProcessedInput = inputText;
-			lastProcessedFile = inputFile && inputFile.length > 0 ? inputFile[0].name : '';
+			lastProcessedInput = getInputHash();
 
 			processingStatus = '';
 		} catch (err) {
@@ -233,12 +240,6 @@
 			downloadButtonText = 'Download Text File';
 		}, 5000);
 	}
-
-	function clearCache() {
-		cardCache.clear();
-		cacheHits = 0;
-		cacheMisses = 0;
-	}
 </script>
 
 <div class="min-h-screen bg-slate-900 p-8">
@@ -255,14 +256,51 @@
 				<h2 class="mb-4 text-xl font-semibold text-white">Card Input</h2>
 
 				<div class="space-y-4">
+					<!-- Moxfield Deck URL -->
+					<div>
+						<label
+							for="moxfieldUrl"
+							class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
+						>
+							<span>Moxfield deck URL</span>
+							{#if moxfieldUrl.trim()}
+								<span
+									class="inline-block rounded bg-green-600/40 px-2 py-0.5 text-xs text-green-300"
+									>Active</span
+								>
+							{/if}
+						</label>
+						<input
+							id="moxfieldUrl"
+							type="url"
+							bind:value={moxfieldUrl}
+							placeholder="https://moxfield.com/decks/..."
+							class="w-full rounded border border-slate-500 bg-slate-600 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+							disabled={isProcessing}
+						/>
+					</div>
+
+					<div class="relative">
+						<div class="absolute inset-0 flex items-center">
+							<div class="w-full border-t border-slate-500"></div>
+						</div>
+						<div class="relative flex justify-center text-sm">
+							<span class="bg-slate-700 px-2 text-slate-400">OR</span>
+						</div>
+					</div>
+
 					<!-- Textarea Input -->
-					<div class={inputFile && inputFile.length > 0 ? 'pointer-events-none opacity-50' : ''}>
+					<div
+						class={moxfieldUrl.trim() || (inputFile && inputFile.length > 0)
+							? 'pointer-events-none opacity-50'
+							: ''}
+					>
 						<label
 							for="textarea"
 							class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
 						>
 							<span>Paste your card list from Moxfield's Bulk Editor</span>
-							{#if !inputFile || inputFile.length === 0}
+							{#if !moxfieldUrl.trim() && (!inputFile || inputFile.length === 0)}
 								<span
 									class="inline-block rounded bg-green-600/40 px-2 py-0.5 text-xs text-green-300"
 									>Active</span
@@ -274,7 +312,8 @@
 							bind:value={inputText}
 							placeholder="Enter one card per line."
 							class="h-40 w-full rounded border border-slate-500 bg-slate-600 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-							disabled={isProcessing || (inputFile && inputFile.length > 0)}></textarea>
+							disabled={isProcessing || !!moxfieldUrl.trim() || (inputFile && inputFile.length > 0)}
+						></textarea>
 					</div>
 
 					<div class="relative">
@@ -287,13 +326,13 @@
 					</div>
 
 					<!-- File Input -->
-					<div>
+					<div class={moxfieldUrl.trim() ? 'pointer-events-none opacity-50' : ''}>
 						<label
 							for="file"
 							class="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
 						>
 							<span>Upload Text File</span>
-							{#if inputFile && inputFile.length > 0}
+							{#if !moxfieldUrl.trim() && inputFile && inputFile.length > 0}
 								<span
 									class="inline-block rounded bg-green-600/40 px-2 py-0.5 text-xs text-green-300"
 									>Active</span
@@ -357,7 +396,9 @@
 					<button
 						on:click={handleProcess}
 						disabled={isProcessing ||
-							(!inputText.trim() && (!inputFile || inputFile.length === 0)) ||
+							(!moxfieldUrl.trim() &&
+								!inputText.trim() &&
+								(!inputFile || inputFile.length === 0)) ||
 							(hasRun && !hasInputChanged())}
 						class="w-full rounded bg-slate-500 px-6 py-3 font-semibold text-white transition hover:bg-slate-400 disabled:cursor-not-allowed disabled:bg-slate-600"
 					>
@@ -399,38 +440,6 @@
 					every printing.
 				</p>
 			</div>
-
-			<!-- Cache Info -->
-			{#if cardCache.size > 0}
-				<div class="rounded-lg bg-slate-700 p-6 shadow-xl">
-					<div class="mb-3 flex items-center justify-between">
-						<h3 class="text-lg font-semibold text-white">Cache Info</h3>
-						<button
-							on:click={clearCache}
-							class="rounded bg-slate-500 px-3 py-1 text-sm text-white transition hover:bg-slate-400"
-						>
-							Clear Cache
-						</button>
-					</div>
-					<div class="grid grid-cols-2 gap-4 text-sm">
-						<div>
-							<div class="text-slate-400">Cached Cards</div>
-							<div class="text-2xl font-bold text-blue-400">{cardCache.size}</div>
-						</div>
-						<div>
-							<div class="text-slate-400">Cache Hit Rate</div>
-							<div class="text-2xl font-bold text-green-400">
-								{cacheHits + cacheMisses > 0
-									? Math.round((cacheHits / (cacheHits + cacheMisses)) * 100)
-									: 0}%
-							</div>
-						</div>
-					</div>
-					<p class="mt-3 text-xs text-slate-400">
-						Cards are cached for this session. Switching between oldest/newest reuses cached data.
-					</p>
-				</div>
-			{/if}
 
 			<!-- Output Section -->
 			{#if hasRun}
