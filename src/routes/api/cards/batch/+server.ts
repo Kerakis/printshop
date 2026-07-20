@@ -41,12 +41,6 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		return httpError(400, 'Missing or empty cards array');
 	}
 
-	// Log what we're receiving for debugging
-	console.log(
-		'Batch request received with cards:',
-		body.cards.map((c) => c.name)
-	);
-
 	const results: {
 		found: boolean;
 		originalCard: BatchRequestCard;
@@ -86,8 +80,6 @@ async function lookupCard(
 			};
 		}
 
-		console.log(`Looking up card: "${cardName}"`);
-
 		// Build ORDER BY clause based on sort order
 		const orderClause =
 			sortOrder === 'newest'
@@ -111,10 +103,6 @@ async function lookupCard(
 			.bind(cardName)
 			.first<Card>();
 
-		if (result) {
-			console.log(`  Found exact match: ${result.name} (${result.set_code})`);
-		}
-
 		// Fallback to prefix search if no exact match, using the first word of the
 		// card name. Anchored (`foo%`, not `%foo%`) so SQLite's LIKE optimization
 		// can range-scan idx_cards_name — a leading wildcard defeats every index
@@ -125,8 +113,6 @@ async function lookupCard(
 		// real substring search is ever needed.
 		const firstWord = cardName.split(/[\s,/]/)[0] || cardName;
 		if (!result && !/[%_]/.test(firstWord)) {
-			console.log(`  No exact match, trying prefix search on: "${firstWord}"`);
-
 			result = await db
 				.prepare(
 					`
@@ -139,12 +125,6 @@ async function lookupCard(
 				)
 				.bind(`${firstWord}%`)
 				.first<Card>();
-
-			if (result) {
-				console.log(`  Found LIKE match: ${result.name} (${result.set_code})`);
-			} else {
-				console.log(`  No match found`);
-			}
 		}
 
 		if (!result) {

@@ -13,5 +13,12 @@
 			"database_name": "mtg-cards-db",
 			"database_id": "1042c0e6-9193-4ba6-bfc0-5169bc18ed02"
 		}
+	],
+	"secrets_store_secrets": [
+		{
+			"binding": "MOXFIELD_USER_AGENT",
+			"store_id": "45b0b97ea80641a1a8f5868478f58b6c",
+			"secret_name": "Moxfield-User-Agent"
+		}
 	]
 }
