@@ -69,8 +69,6 @@ export function parseCardInput(input: string): ParsedInputCard[] {
 
 		if (!cardName) continue;
 
-		console.log(`Parsed card: "${remaining.trim()}" -> "${cardName}"`);
-
 		cards.push({
 			name: cardName,
 			quantity,
