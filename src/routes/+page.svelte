@@ -21,6 +21,8 @@
 	let downloadButtonText = 'Download Text File';
 	let sortOrder: 'oldest' | 'newest' = 'oldest';
 
+	$: totalQuantity = successCards.reduce((sum, card) => sum + (parseInt(card, 10) || 1), 0);
+
 	const cardCache = new SvelteMap<string, CardCacheEntry>();
 
 	let lastProcessedInput = '';
@@ -504,7 +506,7 @@
 			{#if hasRun && (successCards.length > 0 || failedCards.length > 0)}
 				<div class="rounded-lg bg-slate-700 p-6 shadow-xl">
 					<h3 class="mb-3 text-lg font-semibold text-white">Summary</h3>
-					<div class="grid grid-cols-2 gap-4 text-sm">
+					<div class="grid grid-cols-3 gap-4 text-sm">
 						<div>
 							<div class="text-slate-400">Found</div>
 							<div class="text-2xl font-bold text-green-400">{successCards.length}</div>
@@ -512,6 +514,10 @@
 						<div>
 							<div class="text-slate-400">Not Found</div>
 							<div class="text-2xl font-bold text-red-400">{failedCards.length}</div>
+						</div>
+						<div>
+							<div class="text-slate-400">Total Cards</div>
+							<div class="text-2xl font-bold text-white">{totalQuantity}</div>
 						</div>
 					</div>
 				</div>
