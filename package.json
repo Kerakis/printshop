@@ -25,7 +25,7 @@
 		"eslint": "^10.8.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.22.0",
-		"globals": "^17.9.0",
+		"globals": "^17.11.0",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
 		"prettier-plugin-tailwindcss": "^0.8.1",
@@ -41,6 +41,6 @@
 		"cookie": "^0.7.0"
 	},
 	"dependencies": {
-		"wrangler": "^4.120.0"
+		"wrangler": "^4.121.0"
 	}
 }
