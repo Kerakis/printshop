@@ -41,6 +41,6 @@
 		"cookie": "^0.7.0"
 	},
 	"dependencies": {
-		"wrangler": "^4.121.0"
+		"wrangler": "^4.124.0"
 	}
 }
