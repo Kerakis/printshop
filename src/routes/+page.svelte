@@ -4,7 +4,7 @@
 		processBatch,
 		type ParsedInputCard,
 		type BatchResultCard
-	} from '$lib/moxfieldFormatter';
+	} from '#lib/moxfieldFormatter.js';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	type CardCacheEntry = { found: boolean; result: BatchResultCard | null };
