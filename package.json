@@ -39,7 +39,7 @@
 		"vite": "^8.3.5"
 	},
 	"dependencies": {
-		"wrangler": "^4.151.3"
+		"wrangler": "^4.153.0"
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
