@@ -17,21 +17,21 @@
 	"devDependencies": {
 		"@eslint/compat": "^2.1.1",
 		"@eslint/js": "^10.0.1",
-		"@sveltejs/adapter-cloudflare": "^8.0.1",
-		"@sveltejs/kit": "^3.1.0",
+		"@sveltejs/adapter-cloudflare": "^8.0.2",
+		"@sveltejs/kit": "^3.1.1",
 		"@sveltejs/load-config": "^0.2.3",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
-		"@tailwindcss/vite": "^4.3.3",
-		"@types/node": "^26.6.5",
-		"eslint": "^10.13.0",
+		"@tailwindcss/vite": "^4.3.4",
+		"@types/node": "^26.6.6",
+		"eslint": "^10.14.0",
 		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.23.1",
-		"globals": "^17.13.0",
+		"eslint-plugin-svelte": "^3.24.0",
+		"globals": "^17.14.0",
 		"prettier": "^3.9.10",
 		"prettier-plugin-svelte": "^4.1.1",
 		"prettier-plugin-tailwindcss": "^0.8.1",
 		"svelte": "^5.57.3",
-		"svelte-check": "^4.7.7",
+		"svelte-check": "^4.7.8",
 		"tailwindcss": "^4.3.3",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"typescript-eslint": "^8.72.1",
@@ -39,7 +39,7 @@
 		"vite": "^8.3.5"
 	},
 	"dependencies": {
-		"wrangler": "^4.154.0"
+		"wrangler": "^4.157.0"
 	},
 	"imports": {
 		"#lib": "./src/lib/index.js",
